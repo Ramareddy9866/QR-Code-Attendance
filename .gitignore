@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+**/node_modules/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+**/.env
+**/.env.local
+**/.env.development
+**/.env.production
+**/.env.test
+
+# Build outputs
+dist/
+build/
+**/dist/
+**/build/
+*.egg-info/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+**/coverage/
+.coverage
+htmlcov/
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# Frontend specific
+frontend/build/
+frontend/dist/
+frontend/.pnp
+frontend/.pnp.js
+frontend/coverage/
+
+# Backend specific
+backend/logs/
+backend/uploads/
+backend/temp/
+backend/*.log 
