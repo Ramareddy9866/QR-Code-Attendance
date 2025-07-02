@@ -15,6 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import { API_BASE_URL } from '../apiConfig';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -51,7 +52,7 @@ const RegisterPage = () => {
     setLoading(true);
     try {
       const { confirmPassword, ...registerData } = formData;
-      const response = await axios.post('/api/auth/register', registerData);
+      const response = await axios.post(`${API_BASE_URL}/auth/register`, registerData);
       login(response.data.token, response.data.user);
       navigate(formData.role === 'admin' ? '/admin' : '/student');
     } catch (err) {

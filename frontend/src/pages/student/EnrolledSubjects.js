@@ -15,6 +15,7 @@ import {
   CardContent
 } from '@mui/material';
 import axios from 'axios';
+import { API_BASE_URL } from '../../apiConfig';
 
 const EnrolledSubjects = () => {
   const [enrollments, setEnrollments] = useState([]);
@@ -23,7 +24,7 @@ const EnrolledSubjects = () => {
   const fetchEnrollments = async () => {
     try {
       const token = localStorage.getItem('token');
-      const { data } = await axios.get('/api/student/enrollments', {
+      const { data } = await axios.get(`${API_BASE_URL}/student/enrollments`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setEnrollments(data);

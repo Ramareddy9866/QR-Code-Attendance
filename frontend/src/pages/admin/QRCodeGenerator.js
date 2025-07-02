@@ -18,6 +18,7 @@ import {
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
 import axios from 'axios';
+import { API_BASE_URL } from '../../apiConfig';
 
 const QRCodeGenerator = () => {
   const [subjects, setSubjects] = useState([]);
@@ -34,7 +35,7 @@ const QRCodeGenerator = () => {
     const fetchSubjects = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('/api/admin/subjects', {
+        const response = await axios.get(`${API_BASE_URL}/admin/subjects`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setSubjects(response.data);
@@ -81,7 +82,7 @@ const QRCodeGenerator = () => {
 
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        '/api/admin/session',
+        `${API_BASE_URL}/admin/session`,
         {
           subjectId: selectedSubject,
           date: date.toISOString(),

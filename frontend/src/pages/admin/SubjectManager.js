@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
+import { API_BASE_URL } from '../../apiConfig';
 
 const SubjectManager = () => {
   const [subjects, setSubjects] = useState([]);
@@ -32,7 +33,7 @@ const SubjectManager = () => {
   const fetchSubjects = async () => {
     try {
       const token = localStorage.getItem('token');
-      const { data } = await axios.get('/api/admin/subjects', {
+      const { data } = await axios.get(`${API_BASE_URL}/admin/subjects`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSubjects(data);
@@ -58,7 +59,7 @@ const SubjectManager = () => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post('/api/admin/subject', formData, {
+      await axios.post(`${API_BASE_URL}/admin/subject`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSuccess('Subject created successfully');
@@ -73,7 +74,7 @@ const SubjectManager = () => {
   const handleDeleteSubject = async (subjectId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/admin/subject/${subjectId}`, {
+      await axios.delete(`${API_BASE_URL}/admin/subject/${subjectId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSuccess('Subject deleted successfully');

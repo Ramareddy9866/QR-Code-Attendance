@@ -19,6 +19,7 @@ import {
 import { Block as BlockIcon } from '@mui/icons-material';
 import axios from 'axios';
 import { format } from 'date-fns';
+import { API_BASE_URL } from '../../apiConfig';
 
 const InvalidateQR = () => {
   const [sessions, setSessions] = useState([]);
@@ -31,7 +32,7 @@ const InvalidateQR = () => {
     setError('');
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/admin/sessions', {
+      const response = await axios.get(`${API_BASE_URL}/admin/sessions`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSessions(response.data);
@@ -52,7 +53,7 @@ const InvalidateQR = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        `/api/admin/session/${sessionId}/invalidate`,
+        `${API_BASE_URL}/admin/session/${sessionId}/invalidate`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

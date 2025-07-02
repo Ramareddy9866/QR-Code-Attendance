@@ -29,6 +29,7 @@ import {
   Cancel as CancelIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import { API_BASE_URL } from '../../apiConfig';
 
 const AttendanceLogs = () => {
   const [subjects, setSubjects] = useState([]);
@@ -48,7 +49,7 @@ const AttendanceLogs = () => {
         setSubjects([]);
         return;
       }
-      const { data } = await axios.get('/api/admin/subjects', {
+      const { data } = await axios.get(`${API_BASE_URL}/admin/subjects`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSubjects(data);
@@ -70,7 +71,7 @@ const AttendanceLogs = () => {
         setAttendanceData(null);
         return;
       }
-      const { data } = await axios.get(`/api/admin/subject/${subjectId}/attendance`, {
+      const { data } = await axios.get(`${API_BASE_URL}/admin/subject/${subjectId}/attendance`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAttendanceData(data);

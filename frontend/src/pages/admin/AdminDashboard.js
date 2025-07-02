@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_BASE_URL } from '../../apiConfig';
 
 const dashboardItems = [
   {
@@ -74,8 +75,8 @@ const AdminDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       const [subjectsRes, sessionsRes] = await Promise.all([
-        axios.get('/api/admin/subjects', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('/api/admin/sessions', { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_BASE_URL}/admin/subjects`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE_URL}/admin/sessions`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       const activeSessions = sessionsRes.data.filter(session => session.isActive);

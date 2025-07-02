@@ -15,6 +15,7 @@ import {
   Divider
 } from '@mui/material';
 import axios from 'axios';
+import { API_BASE_URL } from '../../apiConfig';
 
 const AttendanceHistory = () => {
   const [attendance, setAttendance] = useState([]);
@@ -27,10 +28,10 @@ const AttendanceHistory = () => {
     try {
       const token = localStorage.getItem('token');
       const [attendanceRes, sessionsRes] = await Promise.all([
-        axios.get('/api/student/attendance-history', {
+        axios.get(`${API_BASE_URL}/student/attendance-history`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get('/api/student/sessions', {
+        axios.get(`${API_BASE_URL}/student/sessions`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);

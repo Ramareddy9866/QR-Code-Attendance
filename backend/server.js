@@ -8,12 +8,15 @@ dotenv.config();
 connectDB();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+     origin: 'https://qr-code-attendance-bay.vercel.app',
+     credentials: true
+   }));
 app.use(express.json());
 
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/admin', require('./routes/adminRoutes'));
-app.use('/api/student', require('./routes/studentRoutes'));
+app.use('/auth', require('./routes/authRoutes'));
+app.use('/admin', require('./routes/adminRoutes'));
+app.use('/student', require('./routes/studentRoutes'));
 
 startSessionExpiryJob();
 

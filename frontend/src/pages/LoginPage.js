@@ -11,6 +11,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import { API_BASE_URL } from '../apiConfig';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ const LoginPage = () => {
     setError('');
 
     try {
-      const response = await axios.post('/api/auth/login', formData);
+      const response = await axios.post(`${API_BASE_URL}/auth/login`, formData);
       login(response.data.token, response.data.user);
 
       const userRole = response.data.user.role;

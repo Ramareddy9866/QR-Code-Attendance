@@ -11,6 +11,7 @@ import {
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../../apiConfig';
 
 const QRScanner = () => {
   const [scanning, setScanning] = useState(false);
@@ -77,7 +78,7 @@ const QRScanner = () => {
         lng: Number(location.lng)
       };
 
-      await axios.post('/api/student/mark-attendance', requestData, {
+      await axios.post(`${API_BASE_URL}/student/mark-attendance`, requestData, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

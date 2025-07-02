@@ -17,6 +17,7 @@ import {
   CircularProgress
 } from '@mui/material';
 import axios from 'axios';
+import { API_BASE_URL } from '../../apiConfig';
 
 const EnrollStudents = () => {
   const [subjects, setSubjects] = useState([]);
@@ -37,7 +38,7 @@ const EnrollStudents = () => {
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('User not authenticated');
-      const response = await axios.get('/api/admin/subjects', {
+      const response = await axios.get(`${API_BASE_URL}/admin/subjects`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSubjects(response.data);
@@ -87,7 +88,7 @@ const EnrollStudents = () => {
       if (!token) throw new Error('User not authenticated');
 
       const response = await axios.post(
-        '/api/admin/enroll-student',
+        `${API_BASE_URL}/admin/enroll-student`,
         {
           name: formData.name,
           rollNumber: formData.rollNumber,
