@@ -16,5 +16,7 @@ router.put('/session/:sessionId/invalidate', adminCtrl.invalidateSession);
 router.get('/sessions', adminCtrl.getSessions);
 
 router.post('/enroll-student', adminCtrl.enrollStudent);
+router.post('/enroll-students', adminCtrl.enrollStudent);
+router.get('/students', adminCtrl.getAllStudents);
 
 module.exports = router;

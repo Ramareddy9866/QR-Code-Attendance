@@ -13,8 +13,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Alert,
-  Snackbar,
   CircularProgress,
   LinearProgress,
   Chip,
@@ -28,7 +26,8 @@ import {
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../../api';
+import CustomSnackbar from '../../components/CustomSnackbar';
 
 const AttendanceLogs = () => {
   const [subjects, setSubjects] = useState([]);
@@ -42,15 +41,7 @@ const AttendanceLogs = () => {
     setLoadingSubjects(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setError('User not authenticated. Please log in.');
-        setSubjects([]);
-        return;
-      }
-      const { data } = await axios.get('/api/admin/subjects', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get('/admin/subjects');
       setSubjects(data);
     } catch {
       setError('Failed to fetch subjects');
@@ -64,15 +55,7 @@ const AttendanceLogs = () => {
     setLoadingAttendance(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setError('User not authenticated. Please log in.');
-        setAttendanceData(null);
-        return;
-      }
-      const { data } = await axios.get(`/api/admin/subject/${subjectId}/attendance`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get(`/admin/subject/${subjectId}/attendance`);
       setAttendanceData(data);
     } catch (err) {
       setError(err.response?.data?.msg || 'Failed to fetch attendance logs');
@@ -83,68 +66,66 @@ const AttendanceLogs = () => {
   };
 
   useEffect(() => {
-    fetchSubjects();
+    fetchSubjects(); // Get subjects when page loads
   }, []);
 
   useEffect(() => {
     if (selectedSubject) {
-      fetchAttendance(selectedSubject);
+      fetchAttendance(selectedSubject); // Get attendance when subject changes
     } else {
       setAttendanceData(null);
     }
   }, [selectedSubject]);
 
-  const formatDate = (dateStr) => new Date(dateStr).toLocaleString();
+  const formatDate = (dateStr) => new Date(dateStr).toLocaleString(); // Format date for display
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box>
-        <Typography variant="h4" align="center" sx={{ mb: 4 }}>
-          Attendance Logs
-        </Typography>
+      <Typography variant="h5" sx={{ mb: 4, textAlign: 'center', fontWeight: 'bold' }}>
+  ATTENDANCE LOGS
+</Typography>
 
-        <Paper sx={{ p: { xs: 2, md: 3 }, mb: 4 }}>
-          <Box sx={{ maxWidth: 400, mx: 'auto', position: 'relative' }}>
-            <FormControl fullWidth size="small" disabled={loadingSubjects}>
-              <InputLabel sx={{ fontSize: '1.1rem' }}>Select Subject</InputLabel>
-              <Select
-                value={selectedSubject}
-                label="Select Subject"
-                onChange={(e) => setSelectedSubject(e.target.value)}
-                sx={{ fontSize: '1.1rem' }}
-              >
-                <MenuItem value="">
-                  <em>None</em>
+        <Box sx={{ maxWidth: 400, mx: 'auto', mb: 4, position: 'relative' }}>
+          <FormControl fullWidth size="small" disabled={loadingSubjects}>
+            <InputLabel sx={{ fontSize: '1.1rem' }}>Select Subject</InputLabel>
+            <Select
+              value={selectedSubject}
+              label="Select Subject"
+              onChange={(e) => setSelectedSubject(e.target.value)}
+              sx={{ fontSize: '1.1rem' }}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {subjects.map(({ _id, name, courseCode }) => (
+                <MenuItem key={_id} value={_id} sx={{ fontSize: '1.1rem' }}>
+                  {name} ({courseCode})
                 </MenuItem>
-                {subjects.map(({ _id, name, courseCode }) => (
-                  <MenuItem key={_id} value={_id} sx={{ fontSize: '1.1rem' }}>
-                    {name} ({courseCode})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            {loadingSubjects && (
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: '50%',
-                  right: 12,
-                  transform: 'translateY(-50%)'
-                }}
-              >
-                <CircularProgress size={24} />
-              </Box>
-            )}
-            {!loadingSubjects && subjects.length === 0 && (
-              <Typography
-                color="text.secondary"
-                sx={{ mt: 1, fontSize: '0.9rem', textAlign: 'center' }}
-              >
-                No subjects found.
-              </Typography>
-            )}
-          </Box>
-        </Paper>
+              ))}
+            </Select>
+          </FormControl>
+          {loadingSubjects && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                right: 12,
+                transform: 'translateY(-50%)'
+              }}
+            >
+              <CircularProgress size={24} />
+            </Box>
+          )}
+          {!loadingSubjects && subjects.length === 0 && (
+            <Typography
+              color="text.secondary"
+              sx={{ mt: 1, fontSize: '0.9rem', textAlign: 'center' }}
+            >
+              No subjects found.
+            </Typography>
+          )}
+        </Box>
 
         {loadingAttendance ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 5 }}>
@@ -211,7 +192,7 @@ const AttendanceLogs = () => {
                 Session Details
               </Typography>
 
-              {attendanceData.sessionDetails.map(({ _id, date, expiresAt, isActive }) => (
+              {attendanceData.sessionDetails.map(({ _id, date, expiresAt, status }) => (
                 <Accordion key={_id} sx={{ mb: 1 }}>
                   <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                     <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
@@ -219,9 +200,21 @@ const AttendanceLogs = () => {
                         Session on {formatDate(date)}
                       </Typography>
                       <Chip
-                        icon={isActive ? <CheckCircleIcon /> : <CancelIcon />}
-                        label={isActive ? 'Active' : 'Expired'}
-                        color={isActive ? 'success' : 'error'}
+                        icon={
+                          status === 'active' ? <CheckCircleIcon /> :
+                          status === 'upcoming' ? <CheckCircleIcon /> :
+                          <CancelIcon />
+                        }
+                        label={
+                          status === 'active' ? 'Active' :
+                          status === 'upcoming' ? 'Upcoming' :
+                          'Expired'
+                        }
+                        color={
+                          status === 'active' ? 'success' :
+                          status === 'upcoming' ? 'info' :
+                          'error'
+                        }
                         size="small"
                         sx={{ fontSize: '0.85rem' }}
                       />
@@ -244,11 +237,7 @@ const AttendanceLogs = () => {
           </Paper>
         ) : null}
 
-        <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError('')}>
-          <Alert severity="error" onClose={() => setError('')} sx={{ fontSize: '1.1rem' }}>
-            {error}
-          </Alert>
-        </Snackbar>
+        <CustomSnackbar open={!!error} onClose={() => setError('')} message={error} severity="error" autoHideDuration={3000} />
       </Box>
     </Container>
   );

@@ -8,14 +8,30 @@ dotenv.config();
 connectDB();
 
 const app = express();
-app.use(cors());
-app.use(express.json());
 
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/admin', require('./routes/adminRoutes'));
-app.use('/api/student', require('./routes/studentRoutes'));
+const allowedOrigin = process.env.FRONTEND_URL;
+
+app.use(cors({
+  origin: allowedOrigin,
+  credentials: true
+}));
+
+app.options('*', cors({
+  origin: allowedOrigin,
+  credentials: true
+}));
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Routes
+app.use('/auth', require('./routes/authRoutes'));
+app.use('/admin', require('./routes/adminRoutes'));
+app.use('/student', require('./routes/studentRoutes'));
 
 startSessionExpiryJob();
 
+// Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

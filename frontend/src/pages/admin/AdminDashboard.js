@@ -2,15 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  Grid,
-  Paper,
   Card,
   CardContent,
-  CardActions,
-  Button,
   CircularProgress,
-  Alert,
-  Snackbar,
   Container
 } from '@mui/material';
 import {
@@ -18,11 +12,10 @@ import {
   QrCode as QrCodeIcon,
   Assessment as AssessmentIcon,
   Block as BlockIcon,
-  PersonAdd as PersonAddIcon,
-  Refresh as RefreshIcon
+  PersonAdd as PersonAddIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../api';
 
 const dashboardItems = [
   {
@@ -30,13 +23,13 @@ const dashboardItems = [
     description: 'Create, view, and manage subjects',
     icon: <SubjectIcon sx={{ fontSize: 40 }} />,
     path: '/admin/subjects',
-    color: '#1976d2'
+    color: '#ff9800' // orange
   },
   {
     title: 'Enroll Students',
     description: 'Add and manage student enrollments',
     icon: <PersonAddIcon sx={{ fontSize: 40 }} />,
-    path: '/admin/students',
+    path: '/admin/enroll',
     color: '#9c27b0'
   },
   {
@@ -51,159 +44,124 @@ const dashboardItems = [
     description: 'View and analyze attendance records',
     icon: <AssessmentIcon sx={{ fontSize: 40 }} />,
     path: '/admin/logs',
-    color: '#ed6c02'
+    color: '#00bcd4' // cyan
   },
   {
     title: 'Invalidate QR',
     description: 'End active attendance sessions',
     icon: <BlockIcon sx={{ fontSize: 40 }} />,
     path: '/admin/invalidate',
-    color: '#d32f2f'
+    color: '#f44336'
   }
 ];
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({ totalSubjects: 0, activeSessions: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const fetchStats = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const token = localStorage.getItem('token');
-      const [subjectsRes, sessionsRes] = await Promise.all([
-        axios.get('/api/admin/subjects', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('/api/admin/sessions', { headers: { Authorization: `Bearer ${token}` } })
-      ]);
-
-      const activeSessions = sessionsRes.data.filter(session => session.isActive);
-
-      setStats({
-        totalSubjects: subjectsRes.data.length,
-        activeSessions: activeSessions.length
-      });
-    } catch {
-      setError('Failed to fetch dashboard statistics');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  if (loading) {
-    return (
-      <Box
-        sx={{
-          height: '100vh',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center'
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 1 }}>
-      <Box sx={{ py: 1 }}>
-        <Typography variant="h4" align="center" sx={{ mb: 2, fontWeight: 'bold' }}>
-          ADMIN DASHBOARD
-        </Typography>
+    <Container maxWidth="lg" sx={{ mt: 4 }}>
+      <Typography variant="h5" sx={{ mb: 4, textAlign: 'center', fontWeight: 'bold' }}>
+  ADMIN DASHBOARD
+</Typography>
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-          <Button
-            startIcon={<RefreshIcon />}
-            onClick={fetchStats}
-            disabled={loading}
-            variant="outlined"
-          >
-            Refresh
-          </Button>
-        </Box>
-
-        <Grid container spacing={2} sx={{ mb: 2 }}>
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2, textAlign: 'center' }}>
-              <Typography variant="h6" color="primary" sx={{ mb: 1 }}>
-                Total Subjects
-              </Typography>
-              <Typography variant="h4">{stats.totalSubjects}</Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2, textAlign: 'center' }}>
-              <Typography variant="h6" color="primary" sx={{ mb: 1 }}>
-                Active Sessions
-              </Typography>
-              <Typography variant="h4">{stats.activeSessions}</Typography>
-            </Paper>
-          </Grid>
-        </Grid>
-
-        <Grid container spacing={2}>
-          {dashboardItems.map(({ title, description, icon, path, color }) => (
-            <Grid item xs={12} sm={6} md={2.4} key={title}>
-              <Card
-                sx={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: 6,
-                    '& .MuiCardContent-root': {
-                      backgroundColor: `${color}10`
-                    }
-                  }
-                }}
-              >
-                <CardContent
-                  sx={{ flexGrow: 1, textAlign: 'center', transition: 'background-color 0.3s ease' }}
-                >
-                  <Box sx={{ color, mb: 1.5 }}>{icon}</Box>
-                  <Typography variant="h6" gutterBottom>
-                    {title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ minHeight: '40px' }}>
-                    {description}
-                  </Typography>
-                </CardContent>
-                <CardActions sx={{ p: 2, pt: 0 }}>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={() => navigate(path)}
-                    aria-label={`Access ${title}`}
-                    sx={{
-                      bgcolor: color,
-                      height: '40px',
-                      '&:hover': {
-                        bgcolor: color,
-                        opacity: 0.9
-                      }
-                    }}
-                  >
-                    Access
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid>
+      {/* Show dashboard cards */}
+      <Box sx={{ width: '100%' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, mb: 3 }}>
+          {dashboardItems.slice(0, 3).map((item, idx) => (
+            <Card
+              key={idx}
+              sx={{
+                boxShadow: 3,
+                borderLeft: `8px solid ${item.color}`,
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                cursor: 'pointer',
+                height: 200,
+                width: 280,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'stretch',
+                alignItems: 'center',
+                '&:hover': {
+                  transform: 'translateY(-8px) scale(1.04)',
+                  boxShadow: 6
+                }
+              }}
+              onClick={() => navigate(item.path)}
+            >
+              <CardContent sx={{
+                p: 2,
+                textAlign: 'center',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100%',
+                ...(item.title === 'Generate QR Code' ? { mt: 2 } : {})
+              }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexGrow: 1, justifyContent: 'center' }}>
+                  {item.icon}
+                </Box>
+                <Typography variant="h6" sx={{ mt: 1, mb: 0.5 }}>
+                  {item.title}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  {item.description}
+                </Typography>
+                <Box sx={{ flexGrow: 1 }} />
+              </CardContent>
+            </Card>
           ))}
-        </Grid>
-
-        <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError('')}>
-          <Alert severity="error" onClose={() => setError('')}>
-            {error}
-          </Alert>
-        </Snackbar>
+        </Box>
+        {/* Second row of cards */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: 3 }}>
+          <Box sx={{ width: 140 }} />
+          {dashboardItems.slice(3, 5).map((item, idx) => (
+            <Card
+              key={idx + 3}
+              sx={{
+                boxShadow: 3,
+                borderLeft: `8px solid ${item.color}`,
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                cursor: 'pointer',
+                height: 200,
+                width: 280,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'stretch',
+                alignItems: 'center',
+                '&:hover': {
+                  transform: 'translateY(-8px) scale(1.04)',
+                  boxShadow: 6
+                }
+              }}
+              onClick={() => navigate(item.path)}
+            >
+              <CardContent sx={{
+                p: 2,
+                textAlign: 'center',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100%'
+              }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexGrow: 1, justifyContent: 'center' }}>
+                  {item.icon}
+                </Box>
+                <Typography variant="h6" sx={{ mt: 1, mb: 0.5 }}>
+                  {item.title}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  {item.description}
+                </Typography>
+                <Box sx={{ flexGrow: 1 }} />
+              </CardContent>
+            </Card>
+          ))}
+          <Box sx={{ width: 140 }} />
+        </Box>
       </Box>
     </Container>
   );

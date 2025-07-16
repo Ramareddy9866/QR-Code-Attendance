@@ -6,7 +6,8 @@ const userSchema = new mongoose.Schema({
   password: String,
   role: { type: String, enum: ['admin', 'student'], required: true },
   rollNumber: { type: String, required: function() { return this.role === 'student'; } },
-  activeSessionToken: { type: String, default: null }
+  resetPasswordToken: String,
+  resetPasswordExpires: Date
 });
 
 module.exports = mongoose.model('User', userSchema);

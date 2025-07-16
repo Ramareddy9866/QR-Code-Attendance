@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -13,8 +13,9 @@ import {
   Link
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../api';
+import CustomSnackbar from '../../components/CustomSnackbar';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -51,9 +52,10 @@ const RegisterPage = () => {
     setLoading(true);
     try {
       const { confirmPassword, ...registerData } = formData;
-      const response = await axios.post('/api/auth/register', registerData);
-      login(response.data.token, response.data.user);
-      navigate(formData.role === 'admin' ? '/admin' : '/student');
+      const response = await api.post('/auth/register', registerData);
+      const user = await login(response.data.token);
+      const userRole = user.role;
+      navigate(userRole === 'admin' ? '/admin' : '/student');
     } catch (err) {
       setError(err.response?.data?.msg || 'Registration failed');
     } finally {
@@ -68,32 +70,26 @@ const RegisterPage = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: 'background.default'
+        bgcolor: 'background.default',
+        mt: { xs: 8, sm: 10 }
       }}
     >
       <Paper elevation={3} sx={{ p: 4, width: '100%', maxWidth: 400 }}>
         <Typography variant="h4" align="center" gutterBottom>
           Register
         </Typography>
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
         <form onSubmit={handleSubmit}>
           <TextField
             fullWidth
             label="Name"
             name="name"
+            type="text"
             value={formData.name}
             onChange={handleChange}
             margin="normal"
             required
             disabled={loading}
           />
-
           <TextField
             fullWidth
             label="Email"
@@ -105,7 +101,6 @@ const RegisterPage = () => {
             required
             disabled={loading}
           />
-
           <TextField
             fullWidth
             label="Password"
@@ -117,7 +112,6 @@ const RegisterPage = () => {
             required
             disabled={loading}
           />
-
           <TextField
             fullWidth
             label="Confirm Password"
@@ -129,25 +123,25 @@ const RegisterPage = () => {
             required
             disabled={loading}
           />
-
-          <FormControl fullWidth margin="normal" disabled={loading}>
-            <InputLabel>Role</InputLabel>
+          <FormControl fullWidth margin="normal">
+            <InputLabel shrink>Role</InputLabel>
             <Select
               name="role"
               value={formData.role}
               onChange={handleChange}
+              disabled={loading}
               label="Role"
             >
-              <MenuItem value="student">Student</MenuItem>
               <MenuItem value="admin">Admin</MenuItem>
+              <MenuItem value="student">Student</MenuItem>
             </Select>
           </FormControl>
-
           {formData.role === 'student' && (
             <TextField
               fullWidth
               label="Roll Number"
               name="rollNumber"
+              type="text"
               value={formData.rollNumber}
               onChange={handleChange}
               margin="normal"
@@ -178,6 +172,7 @@ const RegisterPage = () => {
             </Link>
           </Box>
         </form>
+        <CustomSnackbar open={!!error} onClose={() => setError('')} message={error} severity="error" autoHideDuration={3000} />
       </Paper>
     </Box>
   );

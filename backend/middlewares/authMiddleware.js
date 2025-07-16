@@ -8,13 +8,14 @@ const authMiddleware = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id);
-    if (!user || user.activeSessionToken !== token) {
+    if (!user) {
       return res.status(401).json({ msg: 'Invalid session' });
     }
 
     req.user = user;
     next();
-  } catch {
+  } catch (err) {
+    console.error('JWT Auth Error:', err);
     res.status(401).json({ msg: 'Unauthorized' });
   }
 };

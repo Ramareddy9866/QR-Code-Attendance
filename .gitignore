@@ -1,63 +1,42 @@
-# Dependencies
+# Node.js
 node_modules/
-**/node_modules/
-venv/
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Environment variables
-.env
-.env.local
-.env.development
-.env.production
-.env.test
-**/.env
-**/.env.local
-**/.env.development
-**/.env.production
-**/.env.test
-
-# Build outputs
-dist/
-build/
-**/dist/
-**/build/
-*.egg-info/
-
-# IDE and editor files
-.idea/
-.vscode/
-*.swp
-*.swo
-.DS_Store
-
-# Logs
-logs/
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Testing
-coverage/
-**/coverage/
-.coverage
-htmlcov/
+# Logs
+logs/
+*.log
 
-# System Files
+# Environment files
+.env
+.env.*
+
+# Build output
+build/
+dist/
+
+# React/CRA
+frontend/build/
+frontend/node_modules/
+
+# Backend
+backend/node_modules/
+backend/logs/
+backend/.env
+
+# OS files
 .DS_Store
 Thumbs.db
 
-# Frontend specific
-frontend/build/
-frontend/dist/
-frontend/.pnp
-frontend/.pnp.js
-frontend/coverage/
+# Editor files
+.vscode/
+.idea/
+*.swp
 
-# Backend specific
-backend/logs/
-backend/uploads/
-backend/temp/
-backend/*.log 
+# Misc
+*.local
+coverage/
+
+# Optional: ignore test output
+/test-output/ 

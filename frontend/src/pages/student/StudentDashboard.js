@@ -19,23 +19,15 @@ const StudentDashboard = () => {
   const { user } = useAuth();
 
   return (
-    <Box sx={{ maxWidth: 'lg', margin: 'auto', p: 2 }}>
+    <Box sx={{ maxWidth: 'lg', margin: 'auto', pt: 1, pb: 2 }}>
       <Grid container spacing={3} justifyContent="center">
         <Grid item xs={12}>
-          <Typography
-            variant="h4"
-            sx={{
-              mb: 3,
-              textAlign: 'center',
-              fontWeight: 'bold',
-              fontSize: '2.5rem',
-            }}
-          >
-            Welcome to the Student Dashboard
-          </Typography>
+        <Typography variant="h5" sx={{ mb: 4, textAlign: 'center', fontWeight: 'bold' }}>
+  STUDENT DASHBOARD
+</Typography>
         </Grid>
 
-        <Grid item xs={12} md={8}>
+        <Grid item xs={12} md={8} sx={{ mt: -2 }}>
           <Card sx={{ boxShadow: 3 }}>
             <CardContent sx={{ p: 4, textAlign: 'center' }}>
               <Typography
@@ -51,6 +43,7 @@ const StudentDashboard = () => {
                 Here you can mark your attendance by scanning the QR code or view your attendance history.
               </Typography>
               
+              {/* Action buttons for student */}
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Button
                   variant="contained"

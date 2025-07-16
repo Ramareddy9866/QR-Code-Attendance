@@ -10,14 +10,14 @@ import {
   Typography,
   Paper,
   Grid,
-  Alert,
-  Snackbar,
   CircularProgress,
   Container
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { enGB } from 'date-fns/locale';
 import { LocalizationProvider, DateTimePicker } from '@mui/x-date-pickers';
-import axios from 'axios';
+import api from '../../api';
+import CustomSnackbar from '../../components/CustomSnackbar';
 
 const QRCodeGenerator = () => {
   const [subjects, setSubjects] = useState([]);
@@ -25,27 +25,40 @@ const QRCodeGenerator = () => {
   const [date, setDate] = useState(new Date());
   const [expiresAt, setExpiresAt] = useState(new Date());
   const [location, setLocation] = useState(null);
-  const [qrCode, setQrCode] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
 
   useEffect(() => {
+    // Get subjects and sessions when page loads
     const fetchSubjects = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get('/api/admin/subjects', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const response = await api.get('/admin/subjects');
         setSubjects(response.data);
       } catch {
         setError('Failed to fetch subjects');
       }
     };
     fetchSubjects();
+    fetchSessions();
   }, []);
 
+  const fetchSessions = async () => {
+    setLoadingSessions(true);
+    try {
+      const response = await api.get('/admin/sessions');
+      setSessions(response.data.filter(s => s.status === 'active' || s.status === 'upcoming'));
+    } catch {
+      setSessions([]);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
   const getCurrentLocation = () => {
+    // Get user's current location
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
         reject(new Error('Geolocation is not supported by your browser'));
@@ -66,8 +79,33 @@ const QRCodeGenerator = () => {
   };
 
   const handleGenerateQR = async () => {
+    // Validate form before sending
     if (!selectedSubject || !date || !expiresAt) {
       setError('Subject, date, and expiry time are required');
+      return;
+    }
+
+    const roundToMinute = (d) => {
+      // Remove seconds and ms
+      const newDate = new Date(d);
+      newDate.setSeconds(0, 0);
+      return newDate;
+    };
+    const start = roundToMinute(date);
+    const end = roundToMinute(expiresAt);
+    const now = roundToMinute(new Date());
+
+    if (start < now) {
+      setError('Start time must be now or in the future.');
+      return;
+    }
+    if (start >= end) {
+      setError('Start time must be before end time.');
+      return;
+    }
+    const diffMinutes = (end - start) / (1000 * 60);
+    if (diffMinutes < 30) {
+      setError('The session must be at least 30 minutes long.');
       return;
     }
 
@@ -76,26 +114,25 @@ const QRCodeGenerator = () => {
     setSuccess('');
 
     try {
+      // Get location and send request to backend
       const currentLocation = await getCurrentLocation();
       setLocation(currentLocation);
 
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        '/api/admin/session',
+      const response = await api.post(
+        '/admin/session',
         {
           subjectId: selectedSubject,
-          date: date.toISOString(),
-          expiresAt: expiresAt.toISOString(),
+          date: start.toISOString(),
+          expiresAt: end.toISOString(),
           lat: currentLocation.lat,
           lng: currentLocation.lng
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
+        }
       );
 
-      setQrCode(response.data.qrCode);
       setSuccess('QR Code generated successfully');
+      fetchSessions(); // Refresh sessions after generating
     } catch (err) {
-      setError(err.message || 'Failed to generate QR code');
+      setError(err.response?.data?.msg || err.message || 'Failed to generate QR code');
     } finally {
       setLoading(false);
     }
@@ -104,14 +141,26 @@ const QRCodeGenerator = () => {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Box>
-        <Typography variant="h4" align="center" sx={{ mb: 4 }}>
-          Generate QR Code
-        </Typography>
+      <Typography variant="h5" sx={{ mb: 4, textAlign: 'center', fontWeight: 'bold' }}>
+  GENERATE QR-CODE
+</Typography>
 
-        <Paper sx={{ p: { xs: 2, md: 4 } }}>
-          <Grid container spacing={3} direction={{ xs: 'column', md: 'row' }}>
-            <Grid item xs={12} md={6}>
-              <Box display="flex" flexDirection="column" gap={2}>
+        {/* Show QR generator and active QR code */}
+        <Grid container spacing={3} sx={{ mb: 4 }} alignItems="center">
+          <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
+            {/* QR Code Generator Form */}
+        <Paper
+          sx={{
+            p: { xs: 2, md: 4 },
+                width: '100%',
+            maxWidth: '100%',
+            mx: 'auto',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+          >
+              <Box display="flex" flexDirection="column" gap={2} flex={1}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Select Subject</InputLabel>
                   <Select
@@ -127,20 +176,22 @@ const QRCodeGenerator = () => {
                   </Select>
                 </FormControl>
 
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
                   <DateTimePicker
                     label="Session Date"
                     value={date}
                     onChange={setDate}
+                    inputFormat="dd/MM/yyyy"
                     renderInput={(params) => <TextField {...params} size="small" fullWidth />}
                   />
                 </LocalizationProvider>
 
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
                   <DateTimePicker
                     label="Expires At"
                     value={expiresAt}
                     onChange={setExpiresAt}
+                    inputFormat="dd/MM/yyyy"
                     renderInput={(params) => <TextField {...params} size="small" fullWidth />}
                   />
                 </LocalizationProvider>
@@ -163,43 +214,116 @@ const QRCodeGenerator = () => {
                   )}
                 </Button>
               </Box>
-            </Grid>
-
-            <Grid
-              item
-              xs={12}
-              md={6}
-              sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
-            >
-              {location && (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  📍 Location: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-                </Typography>
-              )}
-
-              {qrCode && (
-                <Paper elevation={3} sx={{ p: 2, textAlign: 'center', width: '100%', maxWidth: 320 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Generated QR Code
-                  </Typography>
-                  <img src={qrCode} alt="Session QR Code" style={{ width: '100%', maxWidth: 250 }} />
-                </Paper>
-              )}
-            </Grid>
+            </Paper>
           </Grid>
+          <Grid item xs={12} md={6}>
+            {/* Active QR Code */}
+            <Paper sx={{
+              p: 3,
+              maxWidth: 400,
+              mx: { xs: 'auto', md: 0 },
+              height: '100%',
+              minHeight: 200,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'flex-start',
+              alignItems: 'center',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': {
+                transform: 'translateY(-6px)',
+                boxShadow: 6,
+              },
+              borderLeft: '6px solid #2e7d32',
+            }}>
+              <Typography variant="h6" sx={{ mb: 1, mt: -1, fontWeight: 'bold', textAlign: 'center', width: '100%' }}>
+                Active QR Code
+              </Typography>
+              {loadingSessions ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2, width: '100%' }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : sessions.filter(s => s.status === 'active').length === 0 ? (
+                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                  <Typography color="text.secondary" sx={{ textAlign: 'center', width: '100%' }}>No active session.</Typography>
+                </Box>
+              ) : (
+                (() => {
+                  const session = sessions.find(s => s.status === 'active');
+                  return (
+                    <>
+                      {session.encryptedId && (
+                        <Box sx={{ mb: 2, mt: 2, textAlign: 'center' }}>
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?data=${session.encryptedId}&size=150x150`}
+                            alt="QR Code"
+                            style={{ width: 150, height: 150, maxWidth: '100%' }}
+                          />
+                        </Box>
+                      )}
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, textAlign: 'center', width: '100%' }}>{session.subject?.name || 'Subject'}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {`From: ${new Date(session.date).toLocaleString()}`}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {`To: ${new Date(session.expiresAt).toLocaleString()}`}
+                        </Typography>
+                      </Box>
+                    </>
+                  );
+                })()
+              )}
+            </Paper>
+          </Grid>
+            </Grid>
+
+        {/* Upcoming QR Codes Section */}
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
+            Upcoming QR Codes
+          </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  QR codes for upcoming sessions will appear when the session starts.
+          </Typography>
+          {loadingSessions ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : sessions.filter(s => s.status === 'upcoming').length === 0 ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 120, width: '100%' }}>
+              <Typography color="text.secondary" sx={{ textAlign: 'center', width: '100%' }}>No upcoming sessions.</Typography>
+            </Box>
+          ) : (
+            <Grid container spacing={2}>
+              {sessions.filter(s => s.status === 'upcoming').map((session) => (
+                <Grid item xs={12} md={6} key={session._id}>
+                  <Paper sx={{
+                    p: 2,
+                    mb: 2,
+                    borderLeft: '6px solid #1976d2',
+                    boxShadow: 2,
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    '&:hover': {
+                      transform: 'translateY(-6px)',
+                      boxShadow: 6,
+                    },
+                  }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{session.subject?.name || 'Subject'}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {`From: ${new Date(session.date).toLocaleString()}`}
+                  </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {`To: ${new Date(session.expiresAt).toLocaleString()}`}
+                  </Typography>
+                </Paper>
+                </Grid>
+              ))}
+              </Grid>
+            )}
         </Paper>
 
-        <Snackbar open={Boolean(error)} autoHideDuration={6000} onClose={() => setError('')}>
-          <Alert severity="error" onClose={() => setError('')}>
-            {error}
-          </Alert>
-        </Snackbar>
-
-        <Snackbar open={Boolean(success)} autoHideDuration={6000} onClose={() => setSuccess('')}>
-          <Alert severity="success" onClose={() => setSuccess('')}>
-            {success}
-          </Alert>
-        </Snackbar>
+        <CustomSnackbar open={!!error} onClose={() => setError('')} message={error} severity="error" autoHideDuration={3000} />
+        <CustomSnackbar open={!!success} onClose={() => setSuccess('')} message={success} severity="success" autoHideDuration={3000} />
       </Box>
     </Container>
   );

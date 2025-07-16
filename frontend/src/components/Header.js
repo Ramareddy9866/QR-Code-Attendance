@@ -4,34 +4,30 @@ import {
   Toolbar, 
   Typography, 
   Box, 
-  IconButton,
-  Menu,
-  MenuItem,
-  Divider
+  IconButton
 } from '@mui/material';
 import { AccountCircle, Logout } from '@mui/icons-material';
+import Tooltip from '@mui/material/Tooltip';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Header = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [anchorEl, setAnchorEl] = useState(null);
+  const location = useLocation();
 
-  const openMenu = (event) => setAnchorEl(event.currentTarget);
-  const closeMenu = () => setAnchorEl(null);
-
-  const handleLogout = () => {
-    closeMenu();
-    logout();
-  };
+  const isAuthPage =
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname === '/forgot-password' ||
+    location.pathname === '/reset-password';
 
   return (
     <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
       <Toolbar>
         <Typography 
           variant="h6" 
-          sx={{ flexGrow: 1, cursor: 'pointer', fontWeight: 'bold' }}
+          sx={{ flexGrow: 1, cursor: 'pointer', fontWeight: 'bold', ml: 4 }}
           onClick={() => navigate(user?.role === 'admin' ? '/admin' : '/student')}
           tabIndex={0}
           onKeyPress={(e) => {
@@ -43,47 +39,24 @@ const Header = () => {
         >
           QRCodeAttendance
         </Typography>
-        {user && (
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography 
-              variant="body1" 
-              sx={{ mr: 2, display: { xs: 'none', sm: 'block' } }}
-            >
-              {user.name}
-            </Typography>
-            <IconButton
-              size="large"
-              aria-label="user account menu"
-              aria-controls="menu-appbar"
-              aria-haspopup="true"
-              onClick={openMenu}
-              color="inherit"
-            >
-              <AccountCircle />
-            </IconButton>
-            <Menu
-              id="menu-appbar"
-              anchorEl={anchorEl}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              keepMounted
-              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-              open={Boolean(anchorEl)}
-              onClose={closeMenu}
-            >
-              <MenuItem disabled>
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="subtitle2">{user.name}</Typography>
-                  <Typography variant="caption" color="text.secondary">{user.email}</Typography>
-                </Box>
-              </MenuItem>
-              <Divider />
-              <MenuItem 
-                onClick={handleLogout} 
-                aria-label="Logout"
-              >
-                <Logout sx={{ mr: 1 }} /> Logout
-              </MenuItem>
-            </Menu>
+        {!isAuthPage && user && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Tooltip title={user.email} arrow>
+              <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'default' }}>
+                <AccountCircle sx={{ mr: 1 }} />
+                <Typography
+                  variant="body1"
+                  sx={{ fontWeight: 500, display: { xs: 'none', sm: 'block' } }}
+                >
+                  {user.name}
+                </Typography>
+              </Box>
+            </Tooltip>
+            <Tooltip title="Logout" arrow>
+              <IconButton color="inherit" onClick={logout} aria-label="Logout">
+                <Logout />
+              </IconButton>
+            </Tooltip>
           </Box>
         )}
       </Toolbar>

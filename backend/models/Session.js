@@ -9,8 +9,13 @@ const sessionSchema = new mongoose.Schema({
     lat: Number,
     lng: Number
   },
-  isActive: { type: Boolean, default: true },
-  encryptedId: String
+  encryptedId: String,
+  status: {
+    type: String,
+    enum: ['upcoming', 'active', 'expired', 'invalidated'],
+    default: 'upcoming',
+    index: true
+  }
 });
 
 sessionSchema.pre('save', async function(next) {

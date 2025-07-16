@@ -14,7 +14,8 @@ import {
   Card,
   CardContent
 } from '@mui/material';
-import axios from 'axios';
+import api from '../../api';
+import CustomSnackbar from '../../components/CustomSnackbar';
 
 const EnrolledSubjects = () => {
   const [enrollments, setEnrollments] = useState([]);
@@ -22,10 +23,7 @@ const EnrolledSubjects = () => {
 
   const fetchEnrollments = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const { data } = await axios.get('/api/student/enrollments', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get('/student/enrollments');
       setEnrollments(data);
     } catch {
       setError('Failed to fetch enrolled subjects');
@@ -33,17 +31,14 @@ const EnrolledSubjects = () => {
   };
 
   useEffect(() => {
-    fetchEnrollments();
+    fetchEnrollments(); // Get enrolled subjects when page loads
   }, []);
 
   return (
     <Box sx={{ maxWidth: 'lg', margin: 'auto', p: 2 }}>
-      <Typography
-        variant="h4"
-        sx={{ mb: 3, textAlign: 'center', fontSize: '2rem' }}
-      >
-        My Enrolled Subjects
-      </Typography>
+      <Typography variant="h5" sx={{ mb: 4, textAlign: 'center', fontWeight: 'bold' }}>
+  MY ENROLLED SUBJECTS
+</Typography>
 
       <Card sx={{ boxShadow: 3, maxWidth: 800, mx: 'auto' }}>
         <CardContent sx={{ p: 4 }}>
@@ -82,16 +77,7 @@ const EnrolledSubjects = () => {
         </CardContent>
       </Card>
 
-      <Snackbar
-        open={!!error}
-        autoHideDuration={6000}
-        onClose={() => setError('')}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert severity="error" onClose={() => setError('')} sx={{ width: '100%', fontSize: '1rem' }}>
-          {error}
-        </Alert>
-      </Snackbar>
+      <CustomSnackbar open={!!error} onClose={() => setError('')} message={error} severity="error" autoHideDuration={3000} />
     </Box>
   );
 };

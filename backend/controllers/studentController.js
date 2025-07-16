@@ -16,7 +16,7 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
     throw new Error('Invalid coordinates');
   }
 
-  const R = 6371e3; // Radius of the Earth in meters
+  const R = 6371e3; // earth radius in meters
   const toRad = deg => deg * Math.PI / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
@@ -39,11 +39,22 @@ exports.markAttendance = async (req, res) => {
     }
 
     const session = await Session.findOne({ encryptedId }).populate('subject');
-    if (!session || !session.isActive) {
+    if (!session || session.status !== 'active') {
       return res.status(400).json({ msg: 'Invalid or inactive session' });
     }
 
-    if (new Date() > new Date(session.expiresAt)) {
+    // Ignore seconds/ms for all time checks
+    const now = new Date();
+    now.setSeconds(0, 0);
+    const sessionStart = new Date(session.date);
+    sessionStart.setSeconds(0, 0);
+    const sessionEnd = new Date(session.expiresAt);
+    sessionEnd.setSeconds(0, 0);
+
+    if (now < sessionStart) {
+      return res.status(400).json({ msg: 'Session has not started yet' });
+    }
+    if (now > sessionEnd) {
       return res.status(400).json({ msg: 'Session expired' });
     }
 
@@ -112,11 +123,9 @@ exports.getSessions = async (req, res) => {
   try {
     const enrollments = await Enrollment.find({ student: req.user._id }).populate('subject');
     const subjectIds = enrollments.map(enrollment => enrollment.subject._id);
-
-    const sessions = await Session.find({ subject: { $in: subjectIds } })
+    const sessions = await Session.find({ subject: { $in: subjectIds }, status: { $in: ['active', 'expired'] } })
       .populate('subject', 'name')
       .sort({ date: -1 });
-
     res.json(sessions);
   } catch (err) {
     res.status(500).json({ msg: 'Failed to fetch sessions' });

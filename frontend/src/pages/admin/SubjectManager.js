@@ -15,12 +15,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
-  Alert,
-  Snackbar
+  IconButton
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
-import axios from 'axios';
+import api from '../../api';
+import CustomSnackbar from '../../components/CustomSnackbar';
 
 const SubjectManager = () => {
   const [subjects, setSubjects] = useState([]);
@@ -28,13 +27,12 @@ const SubjectManager = () => {
   const [formData, setFormData] = useState({ name: '', courseCode: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [subjectToDelete, setSubjectToDelete] = useState(null);
 
   const fetchSubjects = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const { data } = await axios.get('/api/admin/subjects', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get(`/admin/subjects`);
       setSubjects(data);
     } catch {
       setError('Failed to fetch subjects');
@@ -57,10 +55,7 @@ const SubjectManager = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      await axios.post('/api/admin/subject', formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post(`/admin/subject`, formData);
       setSuccess('Subject created successfully');
       setFormData({ name: '', courseCode: '' });
       setOpen(false);
@@ -70,119 +65,146 @@ const SubjectManager = () => {
     }
   };
 
-  const handleDeleteSubject = async (subjectId) => {
+  const handleDeleteSubject = async () => {
+    if (!subjectToDelete) return;
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`/api/admin/subject/${subjectId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.delete(`/admin/subject/${subjectToDelete}`);
       setSuccess('Subject deleted successfully');
       fetchSubjects();
     } catch {
       setError('Failed to delete subject');
+    } finally {
+      setDeleteDialogOpen(false);
+      setSubjectToDelete(null);
     }
   };
 
   return (
-    <Box sx={{ width: '80%', maxWidth: 800, mx: 'auto', py: 4 }}>
-      <Typography variant="h4" sx={{ mb: 4, textAlign: 'center' }}>
-        Subject Management
-      </Typography>
+    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+      <Box sx={{ width: '95%', maxWidth: 700 }}>
+        <Typography variant="h5" sx={{ mb: 3, textAlign: 'center', fontWeight: 'bold' }}>
+          SUBJECT MANAGEMENT
+        </Typography>
 
-      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-        <Button
-          variant="contained"
-          onClick={() => setOpen(true)}
-          sx={{ paddingX: 4, fontSize: '1.2rem', borderRadius: 2 }}
+        {/* Dialog for adding new subject */}
+        <Dialog open={open} onClose={() => setOpen(false)}>
+          <DialogTitle>Add New Subject</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              name="name"
+              label="Subject Name"
+              type="text"
+              fullWidth
+              value={formData.name}
+              onChange={handleChange}
+            />
+            <TextField
+              margin="dense"
+              name="courseCode"
+              label="Course Code"
+              type="text"
+              fullWidth
+              value={formData.courseCode}
+              onChange={handleChange}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateSubject}>Add</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Show error or success message */}
+        <CustomSnackbar open={!!error} onClose={() => setError('')} message={error} severity="error" autoHideDuration={3000} />
+        <CustomSnackbar open={!!success} onClose={() => setSuccess('')} message={success} severity="success" autoHideDuration={3000} />
+
+        {/* Button to add subject */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1, pr: 8 }}>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => setOpen(true)}
+            sx={{ fontSize: '0.95rem', borderRadius: 2, px: 2, py: 0.5, boxShadow: 1 }}
+          >
+            Add Subject
+          </Button>
+        </Box>
+        {/* Table of subjects */}
+        <TableContainer
+          component={Paper}
+          sx={{
+            mx: 'auto',
+            width: '100%',
+            maxWidth: 600,
+            boxShadow: 3,
+            borderRadius: 2,
+            overflowX: 'auto',
+            position: 'relative'
+          }}
         >
-          Add New Subject
-        </Button>
-      </Box>
-
-      <TableContainer
-        component={Paper}
-        sx={{
-          boxShadow: 2,
-          borderRadius: 2,
-          width: '100%',
-          maxWidth: 600,
-          mx: 'auto'
-        }}
-      >
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ fontSize: '1.2rem' }}>Course Code</TableCell>
-              <TableCell sx={{ fontSize: '1.2rem' }}>Subject Name</TableCell>
-              <TableCell align="right" sx={{ fontSize: '1.2rem' }}>
-                Actions
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {subjects.map(({ _id, courseCode, name }) => (
-              <TableRow key={_id}>
-                <TableCell sx={{ fontSize: '1rem', py: 1 }}>{courseCode}</TableCell>
-                <TableCell sx={{ fontSize: '1rem', py: 1 }}>{name}</TableCell>
-                <TableCell align="right">
-                  <IconButton
-                    color="error"
-                    onClick={() => handleDeleteSubject(_id)}
-                    sx={{ fontSize: '1.3rem' }}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell
+                  sx={{
+                    fontSize: '1.15rem',
+                    fontWeight: 'bold',
+                    pl: 4
+                  }}
+                >
+                  Name
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontSize: '1.15rem',
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    px: 2
+                  }}
+                >
+                  Course Code
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontSize: '1.15rem',
+                    fontWeight: 'bold',
+                    textAlign: 'right',
+                    pr: 4
+                  }}
+                >
+                  Actions
                 </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontSize: '1.25rem' }}>Add New Subject</DialogTitle>
-        <DialogContent sx={{ py: 2 }}>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Course Code"
-            name="courseCode"
-            fullWidth
-            value={formData.courseCode}
-            onChange={handleChange}
-            sx={{ mb: 2, fontSize: '1.1rem' }}
-          />
-          <TextField
-            margin="dense"
-            label="Subject Name"
-            name="name"
-            fullWidth
-            value={formData.name}
-            onChange={handleChange}
-            sx={{ fontSize: '1.1rem' }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)} sx={{ fontSize: '1.1rem' }}>
-            Cancel
-          </Button>
-          <Button onClick={handleCreateSubject} variant="contained" sx={{ fontSize: '1.1rem' }}>
-            Create
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError('')}>
-        <Alert severity="error" onClose={() => setError('')} sx={{ fontSize: '1.1rem' }}>
-          {error}
-        </Alert>
-      </Snackbar>
-
-      <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess('')}>
-        <Alert severity="success" onClose={() => setSuccess('')} sx={{ fontSize: '1.1rem' }}>
-          {success}
-        </Alert>
-      </Snackbar>
+            </TableHead>
+            <TableBody>
+              {subjects.map((subject) => (
+                <TableRow key={subject._id}>
+                  <TableCell sx={{ pl: 4, fontSize: '1.1rem' }}>{subject.name}</TableCell>
+                  <TableCell sx={{ textAlign: 'center', px: 2, fontSize: '1.1rem' }}>{subject.courseCode}</TableCell>
+                  <TableCell sx={{ textAlign: 'right', pr: 4, fontSize: '1.1rem' }}>
+                    <IconButton onClick={() => { setSubjectToDelete(subject._id); setDeleteDialogOpen(true); }}>
+                      <DeleteIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        {/* Dialog to confirm delete */}
+        <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+          <DialogTitle>Confirm Deletion</DialogTitle>
+          <DialogContent>
+            <Typography>Are you sure you want to delete this subject? This action cannot be undone.</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleDeleteSubject} color="error" variant="contained">Delete</Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
     </Box>
   );
 };

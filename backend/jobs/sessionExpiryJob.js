@@ -1,18 +1,24 @@
 const Session = require('../models/Session');
 
-const checkExpiredSessions = async () => {
+const checkSessionStatuses = async () => {
   try {
     const now = new Date();
+    // set sessions to active if time is right
     await Session.updateMany(
-      { expiresAt: { $lt: now }, isActive: true },
-      { $set: { isActive: false } }
+      { date: { $lte: now }, expiresAt: { $gt: now }, status: { $in: ['upcoming', 'active', 'expired'] } },
+      { $set: { status: 'active' } }
+    );
+    // set sessions to expired if time is over
+    await Session.updateMany(
+      { expiresAt: { $lte: now }, status: { $in: ['upcoming', 'active', 'expired'] } },
+      { $set: { status: 'expired' } }
     );
   } catch (error) {}
 };
 
-const startSessionExpiryJob = () => {
-  setInterval(checkExpiredSessions, 60000);
-  checkExpiredSessions();
+const startSessionStatusJob = () => {
+  setInterval(checkSessionStatuses, 60000);
+  checkSessionStatuses();
 };
 
-module.exports = startSessionExpiryJob;
+module.exports = startSessionStatusJob;

@@ -9,37 +9,50 @@ import {
   FormGroup,
   FormControlLabel,
   Checkbox,
-  Alert,
-  Snackbar,
   Container,
-  Grid,
-  Divider,
-  CircularProgress
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
-import axios from 'axios';
+import api from '../../api';
+import CustomSnackbar from '../../components/CustomSnackbar';
 
 const EnrollStudents = () => {
+  const [students, setStudents] = useState([]);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [subjects, setSubjects] = useState([]);
-  const [formData, setFormData] = useState({
-    name: '',
-    rollNumber: '',
-    selectedSubjects: []
-  });
+  const [selectedSubjects, setSelectedSubjects] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [enrollmentDetails, setEnrollmentDetails] = useState(null);
-  const [loadingSubjects, setLoadingSubjects] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [selectedStudents, setSelectedStudents] = useState([]);
+  const [proceed, setProceed] = useState(false);
+  const [resultDialogOpen, setResultDialogOpen] = useState(false);
+  const [enrollResults, setEnrollResults] = useState([]);
+
+  const fetchStudents = async () => {
+    setLoadingStudents(true);
+    try {
+      const response = await api.get('/admin/students');
+      setStudents(response.data);
+    } catch (err) {
+      setStudents([]);
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
 
   const fetchSubjects = async () => {
     setLoadingSubjects(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('User not authenticated');
-      const response = await axios.get('/api/admin/subjects', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/admin/subjects');
       setSubjects(response.data);
     } catch (err) {
       setError(err.message || 'Failed to fetch subjects');
@@ -50,23 +63,35 @@ const EnrollStudents = () => {
   };
 
   useEffect(() => {
-    fetchSubjects();
+    fetchStudents(); // Get students when page loads
+    fetchSubjects(); // Get subjects when page loads
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  const filteredStudents = students.filter(
+    s =>
+      s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      s.rollNumber.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      (s.email && s.email.toLowerCase().includes(studentSearch.toLowerCase()))
+  );
 
   const handleSubjectChange = (subjectId) => {
-    setFormData(prev => {
-      const isSelected = prev.selectedSubjects.includes(subjectId);
-      return {
-        ...prev,
-        selectedSubjects: isSelected
-          ? prev.selectedSubjects.filter(id => id !== subjectId)
-          : [...prev.selectedSubjects, subjectId]
-      };
+    // Add or remove subject from selection
+    setSelectedSubjects(prev =>
+      prev.includes(subjectId)
+        ? prev.filter(id => id !== subjectId)
+        : [...prev, subjectId]
+    );
+  };
+
+  const handleStudentToggle = (student) => {
+    // Add or remove student from selection
+    setSelectedStudents(prev => {
+      const exists = prev.find(s => s._id === student._id);
+      if (exists) {
+        return prev.filter(s => s._id !== student._id);
+      } else {
+        return [...prev, student];
+      }
     });
   };
 
@@ -76,46 +101,35 @@ const EnrollStudents = () => {
     setSuccess('');
     setEnrollmentDetails(null);
 
-    if (!formData.name || !formData.rollNumber || formData.selectedSubjects.length === 0) {
-      setError('Please fill all fields and select at least one subject');
+    if (selectedStudents.length === 0) {
+      setError('Please select at least one student');
+      return;
+    }
+    if (selectedSubjects.length === 0) {
+      setError('Please select at least one subject');
       return;
     }
 
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('User not authenticated');
-
-      const response = await axios.post(
-        '/api/admin/enroll-student',
+      // Send enroll request to backend
+      const response = await api.post(
+        '/admin/enroll-students',
         {
-          name: formData.name,
-          rollNumber: formData.rollNumber,
-          subjectIds: formData.selectedSubjects
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
+          students: selectedStudents.map(s => ({ rollNumber: s.rollNumber, name: s.name })),
+          subjectIds: selectedSubjects
+        }
       );
-
       if (response.status === 201) {
-        setSuccess(response.data.msg);
-        setEnrollmentDetails({
-          newEnrollments: response.data.newEnrollments,
-          existingEnrollments: response.data.existingEnrollments
-        });
-        setFormData({
-          name: '',
-          rollNumber: '',
-          selectedSubjects: []
-        });
+        setEnrollResults(response.data.results); // Show results
+        setResultDialogOpen(true);
+        setSelectedSubjects([]);
+        setSelectedStudents([]);
+        setProceed(false);
       }
     } catch (err) {
-      const errorMessage = err.response?.data?.msg || err.message || 'Failed to enroll student';
+      const errorMessage = err.response?.data?.msg || err.message || 'Failed to enroll students';
       setError(errorMessage);
-      if (err.response?.data?.existingEnrollments) {
-        setEnrollmentDetails({
-          existingEnrollments: err.response.data.existingEnrollments
-        });
-      }
     } finally {
       setSubmitting(false);
     }
@@ -123,46 +137,96 @@ const EnrollStudents = () => {
 
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
-      <Typography variant="h4" sx={{ mb: 4, textAlign: 'center' }}>
-        Enroll Student
-      </Typography>
-
-      <Paper elevation={3} sx={{ p: 3 }}>
-        <form onSubmit={handleSubmit}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Typography variant="h6" sx={{ mb: 1 }}>
-                Student Information
-              </Typography>
-              <TextField
-                fullWidth
-                label="Student Name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                margin="normal"
-                size="small"
-                required
-                disabled={submitting}
-              />
-              <TextField
-                fullWidth
-                label="Roll Number"
-                name="rollNumber"
-                value={formData.rollNumber}
-                onChange={handleChange}
-                margin="normal"
-                size="small"
-                required
-                disabled={submitting}
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
+      <Typography variant="h5" sx={{ mb: 4, textAlign: 'center', fontWeight: 'bold' }}>
+  ENROLL STUDENTS
+</Typography>
+      <Paper sx={{ p: 3 }}>
+        {!proceed ? (
+          <>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Select Students
+            </Typography>
+            <TextField
+              fullWidth
+              placeholder="Search by name, roll, or email"
+              value={studentSearch}
+              onChange={e => setStudentSearch(e.target.value)}
+              size="small"
+              sx={{ mb: 2 }}
+            />
+            <Box sx={{ maxHeight: 350, overflowY: 'auto', mb: 2 }}>
+              {loadingStudents ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : filteredStudents.length > 0 ? (
+                filteredStudents.map(student => {
+                  const checked = selectedStudents.some(s => s._id === student._id);
+                  return (
+                    <Box
+                      key={student._id}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        mb: 1,
+                        px: 1,
+                        py: 0.5,
+                        borderRadius: 1,
+                        backgroundColor: checked ? 'action.selected' : 'transparent',
+                        cursor: 'pointer',
+                        '&:hover': { backgroundColor: 'action.hover' }
+                      }}
+                      onClick={() => handleStudentToggle(student)}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        color="primary"
+                        sx={{ mr: 1 }}
+                        tabIndex={-1}
+                        inputProps={{ 'aria-label': `Select ${student.name}` }}
+                        onChange={() => handleStudentToggle(student)}
+                        onClick={e => e.stopPropagation()}
+                      />
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{student.name}</Typography>
+                        <Typography variant="body2" color="text.secondary">Roll: {student.rollNumber}</Typography>
+                        <Typography variant="body2" color="text.secondary">{student.email}</Typography>
+                      </Box>
+                    </Box>
+                  );
+                })
+              ) : (
+                <Typography variant="body2" color="text.secondary">No students found.</Typography>
+              )}
+            </Box>
+            {selectedStudents.length > 0 && (
+              <Button variant="contained" fullWidth sx={{ mb: 2 }} onClick={() => setProceed(true)}>
+                Proceed to Subject Selection
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  Selected Students:
+                </Typography>
+                {selectedStudents.map(s => (
+                  <Typography key={s._id} variant="body2" color="text.secondary">
+                    {s.name} (Roll: {s.rollNumber})
+                  </Typography>
+                ))}
+              </Box>
+              <Button variant="text" color="primary" onClick={() => setProceed(false)}>
+                Back to Student Selection
+              </Button>
+            </Box>
+            <form onSubmit={handleSubmit}>
               <Typography variant="h6" sx={{ mb: 1 }}>
                 Select Subjects
               </Typography>
-              <Paper sx={{ maxHeight: 200, overflowY: 'auto', p: 2 }}>
+              <Paper sx={{ maxHeight: 200, overflowY: 'auto', p: 2, mb: 2 }}>
                 {loadingSubjects ? (
                   <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                     <CircularProgress />
@@ -176,7 +240,7 @@ const EnrollStudents = () => {
                             key={subject._id}
                             control={
                               <Checkbox
-                                checked={formData.selectedSubjects.includes(subject._id)}
+                                checked={selectedSubjects.includes(subject._id)}
                                 onChange={() => handleSubjectChange(subject._id)}
                                 size="small"
                                 disabled={submitting}
@@ -199,10 +263,6 @@ const EnrollStudents = () => {
                   </FormControl>
                 )}
               </Paper>
-            </Grid>
-
-            <Grid item xs={12}>
-              <Divider sx={{ mb: 2 }} />
               <Button
                 type="submit"
                 variant="contained"
@@ -210,53 +270,65 @@ const EnrollStudents = () => {
                 size="large"
                 disabled={submitting || loadingSubjects}
               >
-                {submitting ? 'Enrolling...' : 'Enroll Student'}
+                {submitting ? 'Enrolling...' : 'Enroll Students'}
               </Button>
-            </Grid>
-          </Grid>
-        </form>
+            </form>
+          </>
+        )}
       </Paper>
-
-      {enrollmentDetails && (
-        <Paper sx={{ p: 3, mt: 4 }}>
-          <Typography variant="h6" gutterBottom>
-            Enrollment Details
-          </Typography>
-
-          {enrollmentDetails.existingEnrollments?.length > 0 && (
+      {/* Show error or success message */}
+      <CustomSnackbar open={!!error} onClose={() => setError('')} message={error} severity="error" autoHideDuration={3000} />
+      <CustomSnackbar open={!!success} onClose={() => setSuccess('')} message={success} severity="success" autoHideDuration={3000} />
+      <Dialog open={resultDialogOpen} onClose={() => setResultDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Enrollment Results</DialogTitle>
+        <DialogContent>
+          {enrollResults.length === 0 ? (
+            <Typography>No results to display.</Typography>
+          ) : (
             <>
-              <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                Already Enrolled Subjects:
-              </Typography>
-              <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                {enrollmentDetails.existingEnrollments.map((enrollment, i) => (
-                  <li key={i}>
-                    {enrollment.subjectName} ({enrollment.courseCode})
-                  </li>
-                ))}
-              </ul>
+              {enrollResults.map((subjectResult, idx) => (
+                <Box key={subjectResult.subject._id || idx} sx={{ mb: 3 }}>
+                  <Typography variant="h6" sx={{ mb: 1 }}>
+                    {subjectResult.subject.name} ({subjectResult.subject.courseCode})
+                  </Typography>
+                  {/* Enrolled students */}
+                  {subjectResult.enrolled.length > 0 && (
+                    <>
+                      <Typography variant="subtitle1" sx={{ color: 'success.main', display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                        <span role="img" aria-label="enrolled" style={{ marginRight: 8 }}>✅</span> Enrolled
+                      </Typography>
+                      <ul style={{ margin: 0, paddingLeft: 20 }}>
+                        {subjectResult.enrolled.map((student, i) => (
+                          <li key={i}>{student.name} ({student.email})</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  {/* Already enrolled students */}
+                  {subjectResult.alreadyEnrolled.length > 0 && (
+                    <>
+                      <Typography variant="subtitle1" sx={{ color: 'warning.main', display: 'flex', alignItems: 'center', mb: 0.5, mt: 1 }}>
+                        <span role="img" aria-label="already enrolled" style={{ marginRight: 8 }}>⚠️</span> Already Enrolled
+                      </Typography>
+                      <ul style={{ margin: 0, paddingLeft: 20 }}>
+                        {subjectResult.alreadyEnrolled.map((student, i) => (
+                          <li key={i}>{student.name} ({student.email})</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  {subjectResult.enrolled.length === 0 && subjectResult.alreadyEnrolled.length === 0 && (
+                    <Typography color="text.secondary">No students processed for this subject.</Typography>
+                  )}
+                </Box>
+              ))}
             </>
           )}
-
-          {enrollmentDetails.newEnrollments > 0 && (
-            <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 2 }}>
-              Newly Enrolled Subjects: {enrollmentDetails.newEnrollments}
-            </Typography>
-          )}
-        </Paper>
-      )}
-
-      <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError('')}>
-        <Alert severity="error" onClose={() => setError('')}>
-          {error}
-        </Alert>
-      </Snackbar>
-
-      <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess('')}>
-        <Alert severity="success" onClose={() => setSuccess('')}>
-          {success}
-        </Alert>
-      </Snackbar>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setResultDialogOpen(false)} variant="contained">Close</Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -9,8 +9,9 @@ import {
   Link
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../api';
+import CustomSnackbar from '../../components/CustomSnackbar';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -29,15 +30,10 @@ const LoginPage = () => {
     setError('');
 
     try {
-      const response = await axios.post('/api/auth/login', formData);
-      login(response.data.token, response.data.user);
-
-      const userRole = response.data.user.role;
-      if (userRole === 'admin') {
-        navigate('/admin', { replace: true });
-      } else {
-        navigate('/student', { replace: true });
-      }
+      const response = await api.post('/auth/login', formData);
+      const user = await login(response.data.token);
+      const userRole = user.role;
+      navigate(userRole === 'admin' ? '/admin' : '/student');
     } catch (err) {
       setError(err.response?.data?.msg || 'Login failed');
     } finally {
@@ -59,13 +55,6 @@ const LoginPage = () => {
         <Typography variant="h4" align="center" gutterBottom>
           Login
         </Typography>
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
         <form onSubmit={handleSubmit}>
           <TextField
             fullWidth
@@ -111,7 +100,18 @@ const LoginPage = () => {
               Don't have an account? Register
             </Link>
           </Box>
+          <Box sx={{ mt: 1, textAlign: 'center' }}>
+            <Link
+              component="button"
+              variant="body2"
+              onClick={() => navigate('/forgot-password')}
+              disabled={loading}
+            >
+              Forgot Password?
+            </Link>
+          </Box>
         </form>
+        <CustomSnackbar open={!!error} onClose={() => setError('')} message={error} severity="error" autoHideDuration={3000} />
       </Paper>
     </Box>
   );

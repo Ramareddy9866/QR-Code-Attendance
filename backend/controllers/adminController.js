@@ -4,7 +4,6 @@ const User = require('../models/User');
 const Enrollment = require('../models/Enrollment');
 const generateQRCode = require('../utils/generateQRCode');
 const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
 
 exports.createSubject = async (req, res) => {
   try {
@@ -39,15 +38,36 @@ exports.getSubjects = async (req, res) => {
 exports.generateSessionQR = async (req, res) => {
   try {
     const { subjectId, date, expiresAt, lat, lng } = req.body;
-    const encryptedId = crypto.randomBytes(16).toString('hex');
+    const start = new Date(date);
+    const end = new Date(expiresAt);
 
+    // check if session time overlaps
+    const overlap = await Session.findOne({
+      admin: req.user._id,
+      status: { $ne: 'invalidated' },
+      $or: [
+        { date: { $lt: end }, expiresAt: { $gt: start } }
+      ]
+    });
+    if (overlap) {
+      return res.status(400).json({ msg: 'Cannot create session: time interval overlaps with another session.' });
+    }
+
+    const encryptedId = crypto.randomBytes(16).toString('hex');
+    // set session status
+    let status = 'upcoming';
+    const now = new Date();
+    if (start <= now && end > now) {
+      status = 'active';
+    }
     const session = await Session.create({
       subject: subjectId,
       admin: req.user._id,
-      date,
-      expiresAt,
+      date: start,
+      expiresAt: end,
       classroomLocation: { lat, lng },
-      encryptedId
+      encryptedId,
+      status
     });
 
     const qrCode = await generateQRCode(encryptedId);
@@ -61,8 +81,16 @@ exports.generateSessionQR = async (req, res) => {
 exports.invalidateSession = async (req, res) => {
   try {
     const { sessionId } = req.params;
-    await Session.findByIdAndUpdate(sessionId, { isActive: false });
-    res.json({ msg: 'Session invalidated' });
+    const session = await Session.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({ msg: 'Session not found' });
+    }
+    if (session.status !== 'active' && session.status !== 'upcoming') {
+      return res.status(400).json({ msg: 'Only active or upcoming sessions can be invalidated.' });
+    }
+    session.status = 'invalidated';
+    await session.save();
+    res.json({ msg: 'Session invalidated successfully' });
   } catch {
     res.status(500).json({ msg: 'Server error' });
   }
@@ -71,32 +99,27 @@ exports.invalidateSession = async (req, res) => {
 exports.viewAttendanceBySubject = async (req, res) => {
   try {
     const subjectId = req.params.subjectId;
-
+    // get sessions for this subject
     const sessions = await Session.find({
       subject: subjectId,
-      admin: req.user._id
+      admin: req.user._id,
+      status: { $in: ['active', 'expired'] }
     }).sort({ date: -1 });
-
     const sessionIds = sessions.map(s => s._id);
     const totalClasses = sessions.length;
-
     const enrollments = await Enrollment.find({ subject: subjectId })
       .populate('student', 'name email rollNumber');
-
     const Attendance = require('../models/Attendance');
-
     const attendanceRecords = await Attendance.find({ session: { $in: sessionIds } })
       .populate('student', 'name email rollNumber')
       .populate({
         path: 'session',
-        select: 'date expiresAt isActive'
+        select: 'date expiresAt status'
       });
-
     const studentStats = enrollments.map(enrollment => {
       const studentAttendance = attendanceRecords.filter(
         record => record.student._id.toString() === enrollment.student._id.toString()
       );
-
       return {
         student: {
           id: enrollment.student._id,
@@ -112,21 +135,19 @@ exports.viewAttendanceBySubject = async (req, res) => {
         attendanceRecords: studentAttendance.map(record => ({
           date: record.session.date,
           scannedAt: record.scannedAt,
-          sessionStatus: record.session.isActive ? 'Active' : 'Expired'
+          sessionStatus: record.session.status
         }))
       };
     });
-
     const sessionDetails = sessions.map(session => ({
       id: session._id,
       date: session.date,
       expiresAt: session.expiresAt,
-      isActive: session.isActive,
+      status: session.status,
       totalAttendance: attendanceRecords.filter(record =>
         record.session._id.toString() === session._id.toString()
       ).length
     }));
-
     res.json({
       subjectId,
       totalClasses,
@@ -157,10 +178,10 @@ exports.deleteSubject = async (req, res) => {
 
 exports.getSessions = async (req, res) => {
   try {
-    const sessions = await Session.find({ admin: req.user._id })
+    // get only active or upcoming sessions
+    const sessions = await Session.find({ admin: req.user._id, status: { $in: ['active', 'upcoming'] } })
       .populate('subject', 'name')
       .sort({ date: -1 });
-
     res.json(sessions);
   } catch {
     res.status(500).json({ msg: 'Server error' });
@@ -169,73 +190,50 @@ exports.getSessions = async (req, res) => {
 
 exports.enrollStudent = async (req, res) => {
   try {
-    const { name, rollNumber, subjectIds } = req.body;
-
-    if (!name || !rollNumber || !Array.isArray(subjectIds) || subjectIds.length === 0) {
-      return res.status(400).json({ msg: 'Name, roll number, and at least one subject are required' });
+    const { students, subjectIds } = req.body;
+    if (!Array.isArray(students) || students.length === 0 || !Array.isArray(subjectIds) || subjectIds.length === 0) {
+      return res.status(400).json({ msg: 'Please provide students and at least one subject' });
     }
-
-    const student = await User.findOne({ rollNumber, role: 'student' });
-    if (!student) {
-      return res.status(404).json({ msg: 'Student does not exist. Please register the student first.' });
+    // get all subjects
+    const subjects = await Subject.find({ _id: { $in: subjectIds } });
+    // prepare result
+    const subjectResults = {};
+    for (const subject of subjects) {
+      subjectResults[subject._id] = {
+        subject: { _id: subject._id, name: subject.name, courseCode: subject.courseCode },
+        enrolled: [],
+        alreadyEnrolled: []
+      };
     }
-
-    if (student.name.toLowerCase() !== name.toLowerCase()) {
-      return res.status(400).json({ msg: 'Student name does not match the registered name' });
-    }
-
-    const existingEnrollments = await Enrollment.find({
-      student: student._id,
-      subject: { $in: subjectIds }
-    }).populate('subject', 'name courseCode');
-
-    const existingSubjectIds = existingEnrollments.map(e => e.subject._id.toString());
-    const newSubjectIds = subjectIds.filter(id => !existingSubjectIds.includes(id));
-
-    if (newSubjectIds.length === 0) {
-      return res.status(400).json({
-        msg: 'Student already enrolled in all selected subjects',
-        existingEnrollments: existingEnrollments.map(e => ({
-          subjectName: e.subject.name,
-          courseCode: e.subject.courseCode
-        }))
+    for (const studentInfo of students) {
+      const rollNumber = typeof studentInfo === 'string' ? studentInfo : studentInfo.rollNumber;
+      const name = typeof studentInfo === 'object' ? studentInfo.name : undefined;
+      const student = await User.findOne({ rollNumber, role: 'student' });
+      if (!student) continue;
+      if (name && student.name.toLowerCase() !== name.toLowerCase()) continue;
+      // find enrollments for this student
+      const existingEnrollments = await Enrollment.find({
+        student: student._id,
+        subject: { $in: subjectIds }
       });
+      const existingSubjectIds = existingEnrollments.map(e => e.subject.toString());
+      for (const subjectId of subjectIds) {
+        const subject = subjects.find(s => s._id.toString() === subjectId.toString());
+        if (!subject) continue;
+        const studentData = { name: student.name, email: student.email, rollNumber: student.rollNumber };
+        if (existingSubjectIds.includes(subjectId.toString())) {
+          subjectResults[subjectId].alreadyEnrolled.push(studentData);
+        } else {
+          await Enrollment.create({ student: student._id, subject: subjectId });
+          subjectResults[subjectId].enrolled.push(studentData);
+        }
+      }
     }
-
-    const enrollments = await Promise.all(
-      newSubjectIds.map(subjectId =>
-        Enrollment.create({
-          student: student._id,
-          subject: subjectId
-        })
-      )
-    );
-
-    let responseMsg = 'Student enrolled successfully';
-    if (existingEnrollments.length > 0) {
-      responseMsg = `Student enrolled in ${newSubjectIds.length} new subject(s). Already enrolled in ${existingEnrollments.length} subject(s).`;
-    }
-
-    res.status(201).json({
-      msg: responseMsg,
-      student: {
-        id: student._id,
-        name: student.name,
-        email: student.email,
-        rollNumber: student.rollNumber
-      },
-      newEnrollments: enrollments.length,
-      existingEnrollments: existingEnrollments.map(e => ({
-        subjectName: e.subject.name,
-        courseCode: e.subject.courseCode
-      }))
-    });
+    // convert to array
+    const results = Object.values(subjectResults);
+    res.status(201).json({ results });
   } catch (err) {
-    res.status(500).json({
-      msg: 'Failed to enroll student',
-      error: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    });
+    res.status(500).json({ msg: 'Failed to enroll students', error: err.message });
   }
 };
 
@@ -254,5 +252,14 @@ exports.getStudentEnrollments = async (req, res) => {
     res.json(enrollments);
   } catch {
     res.status(500).json({ msg: 'Failed to fetch enrollments' });
+  }
+};
+
+exports.getAllStudents = async (req, res) => {
+  try {
+    const students = await User.find({ role: 'student' }, 'name email rollNumber');
+    res.json(students);
+  } catch (err) {
+    res.status(500).json({ msg: 'Failed to fetch students' });
   }
 };
