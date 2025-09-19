@@ -15,7 +15,8 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton
+  IconButton,
+  CircularProgress
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../../api';
@@ -29,13 +30,17 @@ const SubjectManager = () => {
   const [success, setSuccess] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [subjectToDelete, setSubjectToDelete] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const fetchSubjects = async () => {
     try {
+      setLoading(true);
       const { data } = await api.get(`/admin/subjects`);
       setSubjects(data);
     } catch {
       setError('Failed to fetch subjects');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -131,7 +136,13 @@ const SubjectManager = () => {
             Add Subject
           </Button>
         </Box>
+
         {/* Table of subjects */}
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
         <TableContainer
           component={Paper}
           sx={{
@@ -193,6 +204,7 @@ const SubjectManager = () => {
             </TableBody>
           </Table>
         </TableContainer>
+        )}
         {/* Dialog to confirm delete */}
         <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
           <DialogTitle>Confirm Deletion</DialogTitle>

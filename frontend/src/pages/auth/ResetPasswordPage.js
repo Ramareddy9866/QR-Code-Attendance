@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Paper, Typography, TextField, Button, Alert } from '@mui/material';
+import { Box, Paper, Typography, TextField, Button, Alert, CircularProgress } from '@mui/material';
 import api from '../../api';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import CustomSnackbar from '../../components/CustomSnackbar';
@@ -114,11 +114,11 @@ const ResetPasswordPage = () => {
             sx={{ mt: 3 }}
             disabled={loading}
           >
-            {loading ? 'Resetting...' : 'Reset Password'}
+            {loading ? (<CircularProgress size={24} color="inherit" />) : ('Reset Password')}
           </Button>
         </form>
         <Box sx={{ mt: 2, textAlign: 'center' }}>
-          <Button variant="text" onClick={() => window.location.href = '/login'}>Back to Login</Button>
+          <Button variant="text" onClick={() => navigate('/login')}>Back to Login</Button>
         </Box>
         <CustomSnackbar open={!!message} onClose={() => setMessage('')} message={message} severity="success" autoHideDuration={3000} />
         <CustomSnackbar open={!!error} onClose={() => setError('')} message={error} severity="error" autoHideDuration={3000} />

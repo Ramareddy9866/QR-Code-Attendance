@@ -28,11 +28,13 @@ const Header = () => {
         <Typography 
           variant="h6" 
           sx={{ flexGrow: 1, cursor: 'pointer', fontWeight: 'bold', ml: 4 }}
-          onClick={() => navigate(user?.role === 'admin' ? '/admin' : '/student')}
-          tabIndex={0}
-          onKeyPress={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              navigate(user?.role === 'admin' ? '/admin' : '/student');
+          onClick={() => {
+            if (!user) {
+              navigate('/login');
+            } else if (user.role === 'admin') {
+              navigate('/admin');
+            } else {
+              navigate('/student');
             }
           }}
           aria-label="Go to dashboard"

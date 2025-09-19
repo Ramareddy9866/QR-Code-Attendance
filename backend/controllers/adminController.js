@@ -45,10 +45,10 @@ exports.generateSessionQR = async (req, res) => {
     const overlap = await Session.findOne({
       admin: req.user._id,
       status: { $ne: 'invalidated' },
-      $or: [
-        { date: { $lt: end }, expiresAt: { $gt: start } }
-      ]
-    });
+      date: { $lt: end },
+      expiresAt: { $gt: start }
+});
+
     if (overlap) {
       return res.status(400).json({ msg: 'Cannot create session: time interval overlaps with another session.' });
     }
@@ -234,24 +234,6 @@ exports.enrollStudent = async (req, res) => {
     res.status(201).json({ results });
   } catch (err) {
     res.status(500).json({ msg: 'Failed to enroll students', error: err.message });
-  }
-};
-
-exports.getStudentEnrollments = async (req, res) => {
-  try {
-    const enrollments = await Enrollment.find({ student: req.user._id })
-      .populate('subject', 'name courseCode')
-      .populate({
-        path: 'subject',
-        populate: {
-          path: 'admin',
-          select: 'name'
-        }
-      });
-
-    res.json(enrollments);
-  } catch {
-    res.status(500).json({ msg: 'Failed to fetch enrollments' });
   }
 };
 

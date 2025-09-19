@@ -41,7 +41,7 @@ const QRScanner = () => {
 
     if (scanning) {
       scanner = new Html5QrcodeScanner('reader', { qrbox: { width: 250, height: 250 }, fps: 10 });
-      scanner.render(onScanSuccess, onScanFailure); // Start QR scanner
+      scanner.render(onScanSuccess, () => {}); // Start QR scanner
     }
 
     return () => {
@@ -87,8 +87,6 @@ const QRScanner = () => {
     }
   };
 
-  const onScanFailure = () => {};
-
   return (
     <Box sx={{ maxWidth: 'lg', margin: 'auto', p: 2 }}>
       <Typography variant="h5" sx={{ mb: 4, textAlign: 'center', fontWeight: 'bold' }}>
@@ -103,14 +101,7 @@ const QRScanner = () => {
           disabled={loading}
           sx={{ width: '100%', maxWidth: '300px', margin: '0 auto', display: 'block' }}
         >
-          {loading ? (
-            <>
-              <CircularProgress size={24} color="inherit" sx={{ mr: 1 }} />
-              Processing...
-            </>
-          ) : (
-            'Start Scanning'
-          )}
+          Start Scanning
         </Button>
       ) : (
         <Paper
@@ -125,6 +116,12 @@ const QRScanner = () => {
         >
           <Box>
             <div id="reader" style={{ width: '100%', maxWidth: 500, margin: '0 auto' }}></div>
+            {loading && (
+              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <CircularProgress size={24} sx={{ mr: 1 }} />
+                <Typography variant="body2">Processing...</Typography>
+              </Box>
+            )}
             <Button variant="outlined" onClick={() => setScanning(false)} sx={{ mt: 2 }} disabled={loading} fullWidth>
               Stop Scanning
             </Button>

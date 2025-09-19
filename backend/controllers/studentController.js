@@ -131,3 +131,21 @@ exports.getSessions = async (req, res) => {
     res.status(500).json({ msg: 'Failed to fetch sessions' });
   }
 };
+
+exports.getStudentEnrollments = async (req, res) => {
+  try {
+    const enrollments = await Enrollment.find({ student: req.user._id })
+      .populate('subject', 'name courseCode')
+      .populate({
+        path: 'subject',
+        populate: {
+          path: 'admin',
+          select: 'name'
+        }
+      });
+
+    res.json(enrollments);
+  } catch {
+    res.status(500).json({ msg: 'Failed to fetch enrollments' });
+  }
+};

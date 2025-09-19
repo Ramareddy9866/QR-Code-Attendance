@@ -12,7 +12,8 @@ import {
   Alert,
   Snackbar,
   Card,
-  CardContent
+  CardContent,
+  CircularProgress
 } from '@mui/material';
 import api from '../../api';
 import CustomSnackbar from '../../components/CustomSnackbar';
@@ -20,13 +21,17 @@ import CustomSnackbar from '../../components/CustomSnackbar';
 const EnrolledSubjects = () => {
   const [enrollments, setEnrollments] = useState([]);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const fetchEnrollments = async () => {
     try {
+      setLoading(true);
       const { data } = await api.get('/student/enrollments');
       setEnrollments(data);
     } catch {
       setError('Failed to fetch enrolled subjects');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -42,6 +47,11 @@ const EnrolledSubjects = () => {
 
       <Card sx={{ boxShadow: 3, maxWidth: 800, mx: 'auto' }}>
         <CardContent sx={{ p: 4 }}>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
           <TableContainer component={Paper} sx={{ maxWidth: 700, mx: 'auto' }}>
             <Table sx={{ minWidth: 650 }}>
               <TableHead>
@@ -74,8 +84,9 @@ const EnrolledSubjects = () => {
               </TableBody>
             </Table>
           </TableContainer>
-        </CardContent>
-      </Card>
+        )}
+      </CardContent>
+    </Card>
 
       <CustomSnackbar open={!!error} onClose={() => setError('')} message={error} severity="error" autoHideDuration={3000} />
     </Box>

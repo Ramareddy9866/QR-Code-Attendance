@@ -10,7 +10,8 @@ import {
   Select,
   MenuItem,
   Alert,
-  Link
+  Link,
+  CircularProgress
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -155,10 +156,14 @@ const RegisterPage = () => {
             fullWidth
             variant="contained"
             size="large"
-            sx={{ mt: 3 }}
+            sx={{ mt: 3, height: 45 }}
             disabled={loading}
           >
-            {loading ? 'Registering...' : 'Register'}
+            {loading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+               'Register'
+            )}
           </Button>
 
           <Box sx={{ mt: 2, textAlign: 'center' }}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Paper, Typography, TextField, Button, Alert } from '@mui/material';
+import { Box, Paper, Typography, TextField, Button, Alert, CircularProgress } from '@mui/material';
 import api from '../../api';
 import CustomSnackbar from '../../components/CustomSnackbar';
 
@@ -47,10 +47,10 @@ const ForgotPasswordPage = () => {
             fullWidth
             variant="contained"
             size="large"
-            sx={{ mt: 3 }}
+            sx={{ mt: 3, height: 45 }}
             disabled={loading}
           >
-            {loading ? 'Sending...' : 'Send Reset Link'}
+            {loading ? (<CircularProgress size={24} color="inherit" />) : ('Send Reset Link')}
           </Button>
         </form>
         <Box sx={{ mt: 2, textAlign: 'center' }}>

@@ -6,7 +6,8 @@ import {
   TextField,
   Button,
   Alert,
-  Link
+  Link,
+  CircularProgress
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -84,10 +85,14 @@ const LoginPage = () => {
             fullWidth
             variant="contained"
             size="large"
-            sx={{ mt: 3 }}
+            sx={{ mt: 3, height: 45 }}
             disabled={loading}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              'Login'
+            )}
           </Button>
 
           <Box sx={{ mt: 2, textAlign: 'center' }}>
